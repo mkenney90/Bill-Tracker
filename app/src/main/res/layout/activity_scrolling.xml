@@ -40,12 +40,35 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" android:id="@+id/tableBills" android:layout_marginTop="125dp">
         <TableRow android:layout_width="match_parent" android:layout_height="match_parent">
-            <TextView android:text="===" android:textSize="2sp" android:layout_marginRight="5dp"/>
-            <TextView android:text="Mortgage" android:textSize="20sp" android:layout_marginRight="5dp"/>
-            <TextView android:text="Power" android:textSize="20sp" android:layout_marginRight="5dp"/>
-            <TextView android:text="Water" android:textSize="20sp" android:layout_marginRight="5dp"/>
-            <TextView android:text="Internet" android:textSize="20sp" android:layout_marginRight="5dp"/>
-            <TextView android:text=" ME " android:textSize="20sp"/>
+
+            <TextView
+                    android:layout_marginRight="5dp"
+                    android:text="==="
+                    android:textSize="2sp" />
+
+            <TextView
+                    android:layout_marginRight="5dp"
+                    android:text="Mortgage"
+                    android:textSize="19sp" />
+
+            <TextView
+                    android:layout_marginRight="5dp"
+                    android:text="Power"
+                    android:textSize="19sp" />
+
+            <TextView
+                    android:layout_marginRight="5dp"
+                    android:text="Water"
+                    android:textSize="19sp" />
+
+            <TextView
+                    android:layout_marginRight="5dp"
+                    android:text="Internet"
+                    android:textSize="19sp" />
+
+            <TextView
+                    android:text="  ME  "
+                    android:textSize="19sp" />
         </TableRow>
         <TableRow android:layout_height="1dp" android:background="@color/colorPrimaryDark">
             <TextView android:layout_height="1dp"/>

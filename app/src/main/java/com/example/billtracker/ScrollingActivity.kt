@@ -8,23 +8,19 @@ import android.view.MenuItem
 import android.widget.TableRow
 import android.widget.TextView
 import kotlinx.android.synthetic.main.activity_scrolling.*
-import okhttp3.OkHttpClient
-import okhttp3.MediaType
-import okhttp3.RequestBody
-import okhttp3.Request
-import okhttp3.Response
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 import org.jetbrains.anko.uiThread
-import org.json.JSONObject
+import khttp.*
+import java.lang.Exception
 import java.net.URL
+import kotlin.collections.ArrayList
 
 class ScrollingActivity : AppCompatActivity() {
 
     private var setPayStatus = false
     private val billsArray = ArrayList<TextView>()
-    private val paidArray = ArrayList<Int>()
-    private val colorPaid = Color.parseColor("#33A000")
+    private val paidArray = IntArray(60)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +40,7 @@ class ScrollingActivity : AppCompatActivity() {
                 row.addView(tvnew)
                 billsArray.add(tvnew)
 
-                var id = "$x$j".toInt()
+                val id = "$x$j".toInt()
                 tvnew.id = id
 
                 val params = tvnew.layoutParams as TableRow.LayoutParams
@@ -58,10 +54,12 @@ class ScrollingActivity : AppCompatActivity() {
                         for ((idx, v) in billsArray.withIndex()) {
                             if (v.id == paidId) {
                                 if (paidArray[idx] == 1) {
-                                    billsArray[idx].setBackgroundColor(Color.GRAY)
+                                    billsArray[idx].setBackgroundColor(getColor(R.color.colorNull))
+                                    billsArray[idx].setBackgroundResource(R.drawable.rounded_corners)
                                     paidArray[idx] = 0
                                 } else {
-                                    billsArray[idx].setBackgroundColor(Color.parseColor("#33A000"))
+                                    billsArray[idx].setBackgroundColor(getColor(R.color.colorPaid))
+                                    billsArray[idx].setBackgroundResource(R.drawable.rounded_corners_paid)
                                     paidArray[idx] = 1
                                 }
                                 break
@@ -90,11 +88,13 @@ class ScrollingActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.action_setstatus -> {
                 setPayStatus = true
-                toolbar_layout.setBackgroundColor(Color.parseColor("#DA5800"))
+                toolbar_layout.setBackgroundColor(getColor(R.color.activePrimary))
+                toolbar.setBackgroundColor(getColor(R.color.activePrimary))
             }
             R.id.action_finish -> {
                 setPayStatus = false
                 toolbar_layout.setBackgroundColor(Color.parseColor("#8A55DA"))
+                toolbar.setBackgroundColor(Color.parseColor("#8A55DA"))
                 writeNetworkData()
             }
             else -> super.onOptionsItemSelected(item)
@@ -104,45 +104,60 @@ class ScrollingActivity : AppCompatActivity() {
 
     }
 
-    fun getNetworkData() : String {
-        var data = "BLANK"
+    private fun getNetworkData() {
 
         doAsync {
             println("async")
 
-            val response = URL("http://www.staminadamage.com/billtracker/bills.txt").readText()
-            val lines = response.lines()
+            try {
+                val response = URL("http://www.staminadamage.com/billtracker/bills.txt").readText()
 
-            for ((i, l) in lines.withIndex()) {
-                val start = l.indexOf("{")
-                var out = l.substring(start + 1, start + 10).replace(",","")
-                var list = out.map { it.toString().toInt() }.toIntArray()
-
-                for ((j, n) in list.withIndex()) {
-                    if (n == 1) {
-                        billsArray[i * 5 + j].setBackgroundColor(colorPaid)
-                        paidArray.add(1)
-                    } else {
-                        paidArray.add(0)
+                if (response.isEmpty()) {
+                    uiThread {
+                        toast("Empty response")
                     }
+                    return@doAsync
+                }
+                val lines = response.lines()
+
+                for ((i, l) in lines.withIndex()) {
+                    if (l.isNotEmpty()) {
+                        val start = l.indexOf("{")
+                        val out = l.substring(start + 1, start + 10).replace(",", "")
+                        val list = out.map { it.toString().toInt() }.toIntArray()
+
+                        runOnUiThread {
+                            for ((j, n) in list.withIndex()) {
+                                val cell = (i * 5 + j)
+                                if (n == 1) {
+                                    billsArray[cell].setBackgroundResource(R.drawable.rounded_corners_paid)
+                                    paidArray[cell] = 1
+                                } else {
+                                    billsArray[cell].setBackgroundResource(R.drawable.rounded_corners)
+                                    paidArray[cell] = 0
+                                }
+                            }
+                        }
+
+                    }
+                }
+                uiThread {
+                    toast("Got network data")
+                }
+            } catch (e : Exception) {
+                uiThread {
+                    toast(e.localizedMessage as CharSequence)
                 }
             }
 
-            uiThread {
-                toast("got network data")
-            }
         }
-
-        return data
     }
 
     private fun writeNetworkData() : String {
-
-        println("write")
         var output = ""
 
-        for (x in 1 until 12) {
-            output = "$output={"
+        for (x in 0 until 12) {
+            output = "$output${x+1}={"
             for (y in 0 until 5) {
                 output = "$output${paidArray[x*5+y]}"
                 if (y < 4) {
@@ -151,28 +166,33 @@ class ScrollingActivity : AppCompatActivity() {
             }
             output = "$output}\n"
         }
-        val json = "{\"data\":$output}"
+        val postData = output
 
         doAsync {
-            sendPostRequest(json)
+            try {
+                val r = sendPostRequest(postData)
+
+                if (r == 200) {
+                    uiThread {
+                        toast("Success")
+                    }
+                }
+            } catch (e : Exception) {
+                uiThread {
+                    toast(e.localizedMessage as CharSequence)
+                }
+            }
         }
         return output
     }
 
-    val JSON = MediaType.parse("application/json; charset=utf-8")
+    private fun sendPostRequest(data:String) : Int {
 
-    private fun sendPostRequest(data:String) : String? {
+        val r = post(
+            url = "http://www.staminadamage.com/billtracker/update.php",
+            data = mapOf("data" to data)
+        )
 
-        val body = RequestBody.create(JSON, data)
-
-        var client = OkHttpClient()
-        var request = Request.Builder()
-            .url("http://www.staminadamage.com/billtracker/update.php")
-            .post(body)
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        return response.body()?.string()
+        return r.statusCode
     }
 }
